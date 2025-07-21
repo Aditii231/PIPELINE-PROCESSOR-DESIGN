@@ -30,3 +30,7 @@ WB writes results back to the register file
 
 5.Pipeline Visualization and Result Display:
 Each clock cycle’s pipeline state is printed in a table format showing which instruction is in each stage. At the end, the final state of all registers is displayed to verify correctness of the simulation.
+
+OUTPUT:
+
+<img width="1221" height="569" alt="Image" src="https://github.com/user-attachments/assets/73942e9d-eac9-44c1-a162-9a8836157bc3" />
