@@ -1,0 +1,105 @@
+clear; clc;
+
+% Instruction format: struct with fields
+% type = 'ADD', 'SUB', 'LOAD'
+% rd, rs1, rs2/imm
+instr_mem = [...
+    struct('type','ADD','rd',1,'rs1',2,'rs2',3);  % R1 = R2 + R3
+    struct('type','SUB','rd',4,'rs1',1,'rs2',2);  % R4 = R1 - R2
+    struct('type','LOAD','rd',5,'rs1',1,'rs2',2); % R5 = MEM[R1 + 2]
+];
+
+% Memory and Registers
+registers = zeros(1, 16);
+registers(2) = 5;   % R2 = 5
+registers(3) = 10;  % R3 = 10
+data_memory = zeros(1, 256);
+data_memory(7) = 99;  % R1(15) + 2 = 17 (example)
+
+% Pipeline registers
+IF_ID = [];
+ID_EX = [];
+EX_WB = [];
+
+% Bookkeeping
+PC = 1;
+clock = 0;
+max_cycles = 10;
+
+fprintf('--- Pipeline Simulation ---\n');
+fprintf('Cycle |  IF   |  ID   |  EX   |  WB   \n');
+fprintf('-------------------------------------\n');
+
+% Start simulation
+for cycle = 1:max_cycles
+    WB = '';
+    EX = '';
+    ID = '';
+    IF = '';
+
+    % WB Stage
+    if ~isempty(EX_WB)
+        instr = EX_WB.instr;
+        result = EX_WB.result;
+        if isfield(instr, 'rd') && instr.rd ~= 0
+            registers(instr.rd+1) = result;
+            WB = sprintf('%s R%d', instr.type, instr.rd);
+        end
+    end
+
+    % EX Stage
+    if ~isempty(ID_EX)
+        instr = ID_EX.instr;
+        rs1_val = ID_EX.rs1_val;
+        rs2_val = ID_EX.rs2_val;
+        switch instr.type
+            case 'ADD'
+                res = rs1_val + rs2_val;
+            case 'SUB'
+                res = rs1_val - rs2_val;
+            case 'LOAD'
+                addr = rs1_val + instr.rs2;
+                res = data_memory(addr+1);  % memory is 1-based in MATLAB
+            otherwise
+                res = 0;
+        end
+        EX_WB.instr = instr;
+        EX_WB.result = res;
+        EX = sprintf('%s R%d', instr.type, instr.rd);
+    else
+        EX_WB = [];
+    end
+
+    % ID Stage
+    if ~isempty(IF_ID)
+        instr = IF_ID;
+        rs1_val = registers(instr.rs1+1);
+        if strcmp(instr.type, 'LOAD')
+            rs2_val = 0;  % Immediate is used directly
+        else
+            rs2_val = registers(instr.rs2+1);
+        end
+        ID_EX.instr = instr;
+        ID_EX.rs1_val = rs1_val;
+        ID_EX.rs2_val = rs2_val;
+        ID = sprintf('%s R%d', instr.type, instr.rd);
+    else
+        ID_EX = [];
+    end
+
+    % IF Stage
+    if PC <= length(instr_mem)
+        instr = instr_mem(PC);
+        IF_ID = instr;
+        IF = sprintf('%s R%d', instr.type, instr.rd);
+        PC = PC + 1;
+    else
+        IF_ID = [];
+    end
+
+    % Print pipeline stage status
+    fprintf(' %2d   | %5s | %5s | %5s | %5s \n', cycle, IF, ID, EX, WB);
+end
+
+fprintf('\nFinal Register File:\n');
+disp(registers);
